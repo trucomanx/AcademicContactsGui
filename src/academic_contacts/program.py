@@ -66,6 +66,9 @@ class AcademicContactsApp(QMainWindow):
         self.init_toolbar()
         self.generate_filepath()
         self.init_ui()
+        
+        if os.path.exists(CONFIG["old_path"]):
+            self.load_file(CONFIG["old_path"])
 
     def generate_filepath(self):
         self.filcontainer = QWidget()
@@ -89,7 +92,7 @@ class AcademicContactsApp(QMainWindow):
 
         #
         open_action = QAction(QIcon.fromTheme("document-open"), "Open", self)
-        open_action.triggered.connect(self.load_file)
+        open_action.triggered.connect(lambda: self.load_file(""))
         toolbar.addAction(open_action)
 
         #
@@ -167,8 +170,10 @@ class AcademicContactsApp(QMainWindow):
         }
         show_about_window(data,self.icon_path)
 
-    def load_file(self):
-        path = QFileDialog.getOpenFileName(self, "Open AcademicContacts.json", "", "*.AcademicContacts.json")[0]
+    def load_file(self, path=""):
+        if os.path.exists(path)==False:
+            path = QFileDialog.getOpenFileName(self, "Open AcademicContacts.json", "", "*.AcademicContacts.json")[0]
+        
         if path:
             try:
                 with open(path, "r", encoding="utf-8") as f:
@@ -176,6 +181,9 @@ class AcademicContactsApp(QMainWindow):
                 self.current_file = path
                 self.path_edit.setText(path)
                 self.refresh_cards()
+                
+                CONFIG["old_path"] = self.current_file
+                configure.save_config(CONFIG_PATH, CONFIG)
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to load file:\n{e}")
 
@@ -197,6 +205,9 @@ class AcademicContactsApp(QMainWindow):
             self.current_file = path
             self.path_edit.setText(path)
             self.save_file()
+            
+            CONFIG["old_path"] = self.current_file
+            configure.save_config(CONFIG_PATH, CONFIG)
 
     def new_file(self):
         self.contacts = []
@@ -305,7 +316,26 @@ class AcademicContactsApp(QMainWindow):
         self.refresh_cards()
 
 def main():
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
+    create_desktop_directory()    
+    create_desktop_menu()
+    create_desktop_file('~/.local/share/applications')
+    
+    for n in range(len(sys.argv)):
+        if sys.argv[n] == "--autostart":
+            create_desktop_directory(overwrite = True)
+            create_desktop_menu(overwrite = True)
+            create_desktop_file('~/.config/autostart', overwrite=True)
+            return
+        if sys.argv[n] == "--applications":
+            create_desktop_directory(overwrite = True)
+            create_desktop_menu(overwrite = True)
+            create_desktop_file('~/.local/share/applications', overwrite=True)
+            return
+    
     app = QApplication(sys.argv)
+    app.setApplicationName(about.__package__) 
     win = AcademicContactsApp()
     win.show()
     sys.exit(app.exec_())
