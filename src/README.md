@@ -2,7 +2,7 @@
 
 Organize your academic contacts
 
-![logo](../screenshot.png)
+![logo](https://raw.githubusercontent.com/trucomanx/AcademicContactsGui/main/screenshot.png)
 
 ## 1. Installing
 

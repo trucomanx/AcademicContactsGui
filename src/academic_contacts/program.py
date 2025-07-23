@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import signal
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QGroupBox,
     QLabel, QFileDialog, QLineEdit, QMessageBox, QScrollArea, QDialog,
@@ -48,7 +49,7 @@ class ContactEditor(QDialog):
 class AcademicContactsApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Academic Contacts Editor")
+        self.setWindowTitle(about.__program_name__)
         self.setGeometry(200, 200, 700, 600)
         self.contacts = []
         self.current_file = ""
