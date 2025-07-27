@@ -1,6 +1,6 @@
 # about.py
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __package__ = "academic_contacts"
 __program_name__ = "academic-contacts"
 __author__ = "Fernando Pujaico Rivera" 

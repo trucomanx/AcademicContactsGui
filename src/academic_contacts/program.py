@@ -4,11 +4,12 @@ import json
 import signal
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QGroupBox,
-    QLabel, QFileDialog, QLineEdit, QMessageBox, QScrollArea, QDialog,
+    QLabel, QFileDialog, QLineEdit, QMessageBox, QScrollArea, QDialog, QTextEdit,  
     QFormLayout, QDialogButtonBox, QMainWindow, QAction, QToolBar, QMenu
 )
-from PyQt5.QtGui import QIcon, QDesktopServices
+from PyQt5.QtGui import QIcon, QDesktopServices, QClipboard
 from PyQt5.QtCore import Qt, QPoint, QUrl
+
 
 import academic_contacts.about as about
 import academic_contacts.modules.configure as configure 
@@ -20,6 +21,99 @@ from academic_contacts.modules.wabout  import show_about_window
 CONFIG_PATH = os.path.join(os.path.expanduser("~"),".config",about.__package__,"config.json")
 configure.verify_default_config(CONFIG_PATH, default_content={"old_path":""})
 CONFIG=configure.load_config(CONFIG_PATH)
+
+
+
+class LatexDialog(QDialog):
+    def __init__(self, text, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Generated LaTeX Code")
+        self.resize(600, 400)
+
+        self.text = text
+
+        layout = QVBoxLayout(self)
+
+        # QTextEdit to display the code
+        self.text_edit = QTextEdit()
+        self.text_edit.setPlainText(text)
+        self.text_edit.setReadOnly(True)
+        self.text_edit.setLineWrapMode(QTextEdit.NoWrap)
+        layout.addWidget(self.text_edit)
+
+        # Buttons layout
+        btn_layout = QHBoxLayout()
+
+        # Copy button
+        self.copy_btn = QPushButton("Copy to Clipboard")
+        self.copy_btn.setToolTip("Copy the LaTeX code to the system clipboard")
+        self.copy_btn.clicked.connect(self.copy_to_clipboard)
+        btn_layout.addWidget(self.copy_btn)
+
+        # OK button
+        self.ok_btn = QPushButton("OK")
+        self.ok_btn.setToolTip("Close this window")
+        self.ok_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(self.ok_btn)
+
+        layout.addLayout(btn_layout)
+
+    def copy_to_clipboard(self):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.text)
+
+def show_latex_message(parent, text):
+    dlg = LatexDialog(text, parent)
+    dlg.exec_()
+    
+def export_elsevier_authors(data):
+    # --- Tabelas para mapear afiliações ---
+    affiliation_map = {}   # string da afiliação -> índice
+    affiliations = []      # lista de afiliações únicas
+    latex_lines = []
+
+    for entry in data:
+        # Verificar obrigatórios
+        for key in ["name", "email", "organization"]:
+            if key not in entry or not entry[key].strip():
+                raise ValueError(f"O campo obrigatório '{key}' está ausente ou vazio para {entry.get('name','<desconhecido>')}")
+
+        org = entry["organization"].strip()
+
+        # Montar chave única da afiliação (string padronizada)
+        parts = [f"organization={{{org}}}"]
+        if entry.get("addressline"):
+            parts.append(f"addressline={{{entry['addressline'].strip()}}}")
+        if entry.get("city"):
+            parts.append(f"city={{{entry['city'].strip()}}}")
+        if entry.get("postcode"):
+            parts.append(f"postcode={{{entry['postcode'].strip()}}}")
+        if entry.get("state"):
+            parts.append(f"state={{{entry['state'].strip()}}}")
+        if entry.get("country"):
+            parts.append(f"country={{{entry['country'].strip()}}}")
+
+        aff_string = ",\n            ".join(parts)
+
+        # Verificar se já existe, senão adicionar
+        if aff_string not in affiliation_map:
+            aff_index = len(affiliations) + 1
+            affiliation_map[aff_string] = aff_index
+            affiliations.append(aff_string)
+        else:
+            aff_index = affiliation_map[aff_string]
+
+        # Adicionar autor
+        latex_lines.append(f"\\author[{aff_index}]{{{entry['name'].strip()}}}")
+        latex_lines.append(f"\\ead{{{entry['email'].strip()}}}")
+        latex_lines.append("")
+
+    # Adicionar blocos de afiliação no final
+    for idx, aff in enumerate(affiliations, start=1):
+        latex_lines.append(f"\\affiliation[{idx}]{{{aff}}}")
+        latex_lines.append("")
+
+    return "\n".join(latex_lines)
 
 
 class ContactEditor(QDialog):
@@ -56,8 +150,8 @@ class AcademicContactsApp(QMainWindow):
         
         ## Icon
         # Get base directory for icons
-        base_dir_path = os.path.dirname(os.path.abspath(__file__))
-        self.icon_path = os.path.join(base_dir_path, 'icons', 'logo.png')
+        self.base_dir_path = os.path.dirname(os.path.abspath(__file__))
+        self.icon_path = os.path.join(self.base_dir_path, 'icons', 'logo.png')
         self.setWindowIcon(QIcon(self.icon_path)) 
 
         self.central_widget = QWidget()
@@ -65,6 +159,7 @@ class AcademicContactsApp(QMainWindow):
         self.main_layout = QVBoxLayout(self.central_widget)
 
         self.init_toolbar()
+        self.init_export_toolbar()
         self.generate_filepath()
         self.init_ui()
         
@@ -93,26 +188,31 @@ class AcademicContactsApp(QMainWindow):
 
         #
         open_action = QAction(QIcon.fromTheme("document-open"), "Open", self)
+        open_action.setToolTip("Save a list card view")
         open_action.triggered.connect(lambda: self.load_file(""))
         toolbar.addAction(open_action)
 
         #
         save_action = QAction(QIcon.fromTheme("document-save"), "Save", self)
+        save_action.setToolTip("Save a list card view")
         save_action.triggered.connect(self.save_file)
         toolbar.addAction(save_action)
 
         #
         save_as_action = QAction(QIcon.fromTheme("document-save-as"), "Save As", self)
+        save_as_action.setToolTip("Save a new list card view")
         save_as_action.triggered.connect(self.save_as_file)
         toolbar.addAction(save_as_action)
 
         #
         new_file_action = QAction(QIcon.fromTheme("document-new"), "New File", self)
+        new_file_action.setToolTip("Generate a new list card view")
         new_file_action.triggered.connect(self.new_file)
         toolbar.addAction(new_file_action)
 
         #
         new_card_action = QAction(QIcon.fromTheme("contact-new"), "New Card", self)
+        new_card_action.setToolTip("Add a new card to current view")
         new_card_action.triggered.connect(self.add_new_card)
         toolbar.addAction(new_card_action)
         
@@ -152,6 +252,25 @@ class AcademicContactsApp(QMainWindow):
         filter_layout.addWidget(filter_label)
         filter_layout.addWidget(self.filter_edit)
         self.main_layout.addLayout(filter_layout)
+
+
+    def init_export_toolbar(self):
+        export_toolbar = QToolBar("Export Toolbar")
+        self.addToolBar(Qt.BottomToolBarArea, export_toolbar)
+        export_toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+
+        #
+        elsevier_icon_path = os.path.join(self.base_dir_path, 'icons', 'elsevier.png')
+        elsevier_action = QAction(QIcon(elsevier_icon_path), "Elsevier", self)
+        elsevier_action.setToolTip("Export the author list in LaTeX to Elsevier template format.")
+        elsevier_action.triggered.connect(self.show_latex_elsevier)
+        export_toolbar.addAction(elsevier_action)
+
+
+
+    def show_latex_elsevier(self):
+        res=export_elsevier_authors(self.contacts)
+        show_latex_message(self, res)
 
     def on_coffee_action_click(self):
         QDesktopServices.openUrl(QUrl("https://ko-fi.com/trucomanx"))
