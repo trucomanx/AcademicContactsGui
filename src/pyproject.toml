@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "academic_contacts"
-version = "0.1.2"
+version = "0.1.3"
 description = "Organize your academic contacts"
 readme = "README.md"
 authors = [{name = "Fernando Pujaico Rivera", email = "fernando.pujaico.rivera@gmail.com"}]
@@ -34,4 +34,4 @@ dependencies = [
 packages = ["academic_contacts", "academic_contacts.modules"]
 
 [tool.setuptools.package-data]
-"academic_contacts" = ["icons/logo.png"]
+"academic_contacts" = ["icons/logo.png","icons/elsevier.png"]
