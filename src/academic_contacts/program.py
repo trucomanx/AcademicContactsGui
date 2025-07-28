@@ -65,33 +65,58 @@ class LatexDialog(QDialog):
 def show_latex_message(parent, text):
     dlg = LatexDialog(text, parent)
     dlg.exec_()
-    
+
+def latex_escape(text):
+    replacements = {
+        '\\': r'\textbackslash{}',
+        '{': r'\{',
+        '}': r'\}',
+        '#': r'\#',
+        '$': r'\$',
+        '%': r'\%',
+        '&': r'\&',
+        '_': r'\_',
+        '~': r'\textasciitilde{}',
+        '^': r'\^{}',
+    }
+    for char, repl in replacements.items():
+        text = text.replace(char, repl)
+    return text
+
+
 def export_elsevier_authors(data):
     # --- Tabelas para mapear afiliações ---
     affiliation_map = {}   # string da afiliação -> índice
     affiliations = []      # lista de afiliações únicas
     latex_lines = []
 
-    for entry in data:
+    if len(data)==0:
+        return ""
+    
+    
+    name = latex_escape(data[0]['name'].strip())
+    latex_lines.append(f"\\cortext[cor1]{{{name}}}\n")
+
+    for ID, entry in enumerate(data):
         # Verificar obrigatórios
         for key in ["name", "email", "organization"]:
             if key not in entry or not entry[key].strip():
                 raise ValueError(f"O campo obrigatório '{key}' está ausente ou vazio para {entry.get('name','<desconhecido>')}")
 
-        org = entry["organization"].strip()
+        org = latex_escape(entry["organization"].strip())
 
         # Montar chave única da afiliação (string padronizada)
         parts = [f"organization={{{org}}}"]
         if entry.get("addressline"):
-            parts.append(f"addressline={{{entry['addressline'].strip()}}}")
+            parts.append(f"addressline={{{latex_escape(entry['addressline'].strip())}}}")
         if entry.get("city"):
-            parts.append(f"city={{{entry['city'].strip()}}}")
+            parts.append(f"city={{{latex_escape(entry['city'].strip())}}}")
         if entry.get("postcode"):
-            parts.append(f"postcode={{{entry['postcode'].strip()}}}")
+            parts.append(f"postcode={{{latex_escape(entry['postcode'].strip())}}}")
         if entry.get("state"):
-            parts.append(f"state={{{entry['state'].strip()}}}")
+            parts.append(f"state={{{latex_escape(entry['state'].strip())}}}")
         if entry.get("country"):
-            parts.append(f"country={{{entry['country'].strip()}}}")
+            parts.append(f"country={{{latex_escape(entry['country'].strip())}}}")
 
         aff_string = ",\n            ".join(parts)
 
@@ -104,8 +129,14 @@ def export_elsevier_authors(data):
             aff_index = affiliation_map[aff_string]
 
         # Adicionar autor
-        latex_lines.append(f"\\author[{aff_index}]{{{entry['name'].strip()}}}")
-        latex_lines.append(f"\\ead{{{entry['email'].strip()}}}")
+        name = latex_escape(entry['name'].strip())
+        email = latex_escape(entry['email'].strip())
+
+        if ID==0:
+            latex_lines.append(f"\\author[{aff_index}]{{{name}\\corref{{cor1}}}}")
+        else:
+            latex_lines.append(f"\\author[{aff_index}]{{{name}}}")
+        latex_lines.append(f"\\ead{{{email}}}")
         latex_lines.append("")
 
     # Adicionar blocos de afiliação no final
@@ -114,6 +145,7 @@ def export_elsevier_authors(data):
         latex_lines.append("")
 
     return "\n".join(latex_lines)
+
 
 
 class ContactEditor(QDialog):
@@ -211,7 +243,7 @@ class AcademicContactsApp(QMainWindow):
         toolbar.addAction(new_file_action)
 
         #
-        new_card_action = QAction(QIcon.fromTheme("contact-new"), "New Card", self)
+        new_card_action = QAction(QIcon.fromTheme("contact-new"), "Add Card", self)
         new_card_action.setToolTip("Add a new card to current view")
         new_card_action.triggered.connect(self.add_new_card)
         toolbar.addAction(new_card_action)
