@@ -22,6 +22,17 @@ CONFIG_PATH = os.path.join(os.path.expanduser("~"),".config",about.__package__,"
 configure.verify_default_config(CONFIG_PATH, default_content={"old_path":""})
 CONFIG=configure.load_config(CONFIG_PATH)
 
+DEFAULT_CONTACT = {
+    "name": "",
+    "email": "",
+    "organization": "",
+    "addressline": "",
+    "city": "",
+    "postcode": "",
+    "state": "",
+    "country": "",
+    "orcid": ""
+}
 
 
 class LatexDialog(QDialog):
@@ -83,6 +94,164 @@ def latex_escape(text):
         text = text.replace(char, repl)
     return text
 
+def split_first_word(full_name):
+    parts = full_name.split()
+    if not parts:
+        return "", ""  # Caso a string esteja vazia ou só espaços
+    first_word = parts[0]
+    rest = " ".join(parts[1:]) if len(parts) > 1 else ""
+    return first_word, rest
+
+def export_mdpi_authors(data):
+    
+    latex_lines=[]
+    
+    line="% Author Orchid ID: enter ID or remove command"
+    latex_lines.append(line)
+    
+    # Orcid
+    for ID, entry in enumerate(data):
+        orcid = entry["orcid"]
+        if len(orcid)>0:
+            line = "\\newcommand{\\orcidauthor"+chr(ID+ord('A'))+"}{"+orcid+"}"
+            latex_lines.append(line)
+    
+    latex_lines.append("")
+    
+    line="% Authors, for the paper (add full first names)"
+    latex_lines.append(line)
+    
+    # Authors1
+    latex_lines.append("\\Author{%")
+    L = len(data)
+    for ID, entry in enumerate(data):
+        name = entry["name"]
+        orcid = entry["orcid"]
+        
+        line = "   "+name
+        
+        #
+        if   ID ==0:
+            line+="$^{1,}*$"
+        else:
+            line+="$^{"+str(ID+1)+"}$"
+
+        #
+        if len(orcid)>0:
+            line+="\\orcid"+chr(ID+ord('A'))+"{}"
+        
+        
+        #
+        if   ID==(L-1):
+            line+="%"
+        elif ID==(L-2):
+            line+=" and %"
+        else:
+            line+=", %"
+        
+        latex_lines.append(line)
+    latex_lines.append("}")
+
+    #
+    latex_lines.append("")
+    line="%\\longauthorlist{yes}"
+    latex_lines.append(line)
+    latex_lines.append("")
+    line="% MDPI internal command: Authors, for metadata in PDF"
+    latex_lines.append(line)
+
+    #
+    latex_lines.append("\\AuthorNames{%")
+    for ID, entry in enumerate(data):
+        name = entry["name"]
+        line = "   "+name
+        if   ID==(L-1):
+            line+="%"
+        elif ID==(L-2):
+            line+=" and %"
+        else:
+            line+=", %"
+        latex_lines.append(line)
+    latex_lines.append("}%")
+    
+    #
+    latex_lines.append("")
+    latex_lines.append("% MDPI internal command: Authors, for citation in the left column, only choose below one of them according to the journal style")
+    
+    #
+    latex_lines.append("\\isAPAStyle{%")
+    latex_lines.append("    \\AuthorCitation{%")
+    for ID, entry in enumerate(data):
+        name = entry["name"]
+        firstname, lastname = split_first_word(name)
+        firstinitial = firstname[0].upper()+"."
+        line = "    "+lastname+", "+firstinitial
+        if   ID==(L-1):
+            line+=" %"
+        elif ID==(L-2):
+            line+=" \\&%"
+        else:
+            line+=", %"
+        latex_lines.append(line)
+    latex_lines.append("    }%")
+    latex_lines.append("}{\\isChicagoStyle{%")
+    latex_lines.append("    \\AuthorCitation{%")
+    for ID, entry in enumerate(data):
+        name = entry["name"]
+        firstname, lastname = split_first_word(name)
+        if ID==0:
+            line = "    "+lastname+", "+firstname
+        else:
+            line = "    "+name
+        
+        if   ID==(L-1):
+            line+=". %"
+        elif ID==(L-2):
+            line+=", and %"
+        else:
+            line+=", %"
+        latex_lines.append(line)
+    latex_lines.append("    }%")
+    latex_lines.append("}{%")
+    latex_lines.append("    \\AuthorCitation{%")
+    for ID, entry in enumerate(data):
+        name = entry["name"]
+        firstname, lastname = split_first_word(name)
+        firstinitial = firstname[0].upper()+"."
+        line = "    "+lastname+", "+firstinitial
+        if   ID==(L-1):
+            line+=" %"
+        else:
+            line+="; %"
+        latex_lines.append(line)
+    latex_lines.append("    }%")
+    latex_lines.append("}}%")
+    
+    #
+    latex_lines.append("")
+    latex_lines.append("% Affiliations / Addresses (Add [1] after \\address if there is only one affiliation.)")
+    latex_lines.append("\\address{%")
+    for ID, entry in enumerate(data):
+        organization = entry["organization"]
+        city = entry["city"]
+        country = entry["country"]
+        email = entry["email"]
+        line = "    $^{"+str(ID+1)+"}$ \\quad "+organization+", "+city+", "+country+"; "+email
+        if ID==(L-1):
+            line+="%"
+        else:
+            line+="\\\\%"
+        latex_lines.append(line)
+        
+    latex_lines.append("}%")
+
+    #
+    latex_lines.append("")
+    latex_lines.append("% Contact information of the corresponding author")
+    line="\\corres{Correspondence: "+data[0]["email"]+"}"
+    latex_lines.append(line)
+    
+    return "\n".join(latex_lines)
 
 def export_elsevier_authors(data):
     # --- Tabelas para mapear afiliações ---
@@ -291,17 +460,28 @@ class AcademicContactsApp(QMainWindow):
         self.addToolBar(Qt.BottomToolBarArea, export_toolbar)
         export_toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
 
-        #
+        # Elsevier
         elsevier_icon_path = os.path.join(self.base_dir_path, 'icons', 'elsevier.png')
         elsevier_action = QAction(QIcon(elsevier_icon_path), "Elsevier", self)
         elsevier_action.setToolTip("Export the author list in LaTeX to Elsevier template format.")
         elsevier_action.triggered.connect(self.show_latex_elsevier)
         export_toolbar.addAction(elsevier_action)
+        
+        # MDPI
+        mdpi_icon_path = os.path.join(self.base_dir_path, 'icons', 'mdpi.png')
+        mdpi_action = QAction(QIcon(mdpi_icon_path), "MDPI", self)
+        mdpi_action.setToolTip("Export the author list in LaTeX to MDPI template format.")
+        mdpi_action.triggered.connect(self.show_latex_mdpi)
+        export_toolbar.addAction(mdpi_action)
 
 
 
     def show_latex_elsevier(self):
         res=export_elsevier_authors(self.contacts)
+        show_latex_message(self, res)
+        
+    def show_latex_mdpi(self):
+        res=export_mdpi_authors(self.contacts)
         show_latex_message(self, res)
 
     def on_coffee_action_click(self):
@@ -330,6 +510,11 @@ class AcademicContactsApp(QMainWindow):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     self.contacts = json.load(f)
+                
+                for contact in self.contacts:
+                    for key, default_value in DEFAULT_CONTACT.items():
+                        contact.setdefault(key, default_value)    
+                    
                 self.current_file = path
                 self.path_edit.setText(path)
                 self.refresh_cards()
@@ -368,17 +553,7 @@ class AcademicContactsApp(QMainWindow):
         self.refresh_cards()
 
     def add_new_card(self):
-        empty_contact = {
-            "name": "",
-            "email": "",
-            "organization": "",
-            "addressline": "",
-            "city": "",
-            "postcode": "",
-            "state": "",
-            "country": ""
-        }
-        dialog = ContactEditor(empty_contact, self)
+        dialog = ContactEditor(DEFAULT_CONTACT, self)
         if dialog.exec_():
             self.contacts.append(dialog.get_data())
             self.refresh_cards()
