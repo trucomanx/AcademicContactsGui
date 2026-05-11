@@ -14,11 +14,17 @@ from PyQt5.QtCore import Qt, QPoint, QUrl
 import academic_contacts.about as about
 import academic_contacts.modules.configure as configure 
 
-from academic_contacts.desktop import create_desktop_file, create_desktop_directory, create_desktop_menu
-from academic_contacts.modules.wabout  import show_about_window
+from academic_contacts.desktop import create_desktop_file
+from academic_contacts.desktop import create_desktop_directory
+from academic_contacts.desktop import create_desktop_menu
+from academic_contacts.modules.wabout    import show_about_window
+from academic_contacts.modules.resources import resource_path
 
 # Caminho para o arquivo de configuração
-CONFIG_PATH = os.path.join(os.path.expanduser("~"),".config",about.__package__,"config.json")
+CONFIG_PATH = os.path.join( os.path.expanduser("~"),
+                            ".config",
+                            about.__package__,
+                            "config.json" )
 configure.verify_default_config(CONFIG_PATH, default_content={"old_path":""})
 CONFIG=configure.load_config(CONFIG_PATH)
 
@@ -351,8 +357,7 @@ class AcademicContactsApp(QMainWindow):
         
         ## Icon
         # Get base directory for icons
-        self.base_dir_path = os.path.dirname(os.path.abspath(__file__))
-        self.icon_path = os.path.join(self.base_dir_path, 'icons', 'logo.png')
+        self.icon_path = resource_path('icons', 'logo.png')
         self.setWindowIcon(QIcon(self.icon_path)) 
 
         self.central_widget = QWidget()
@@ -388,31 +393,31 @@ class AcademicContactsApp(QMainWindow):
         toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
 
         #
-        open_action = QAction(QIcon.fromTheme("document-open"), "Open", self)
-        open_action.setToolTip("Save a list card view")
+        open_action = QAction(QIcon(resource_path('icons', 'open_file.png')), "Open", self)
+        open_action.setToolTip("Open list card from a *.AcademicContacts.json")
         open_action.triggered.connect(lambda: self.load_file(""))
         toolbar.addAction(open_action)
 
         #
-        save_action = QAction(QIcon.fromTheme("document-save"), "Save", self)
+        save_action = QAction(QIcon(resource_path('icons', 'download.png')), "Save", self)
         save_action.setToolTip("Save a list card view")
         save_action.triggered.connect(self.save_file)
         toolbar.addAction(save_action)
 
         #
-        save_as_action = QAction(QIcon.fromTheme("document-save-as"), "Save As", self)
-        save_as_action.setToolTip("Save a new list card view")
+        save_as_action = QAction(QIcon(resource_path('icons', 'download-green.png')), "Save As", self)
+        save_as_action.setToolTip("Save as a new list card view")
         save_as_action.triggered.connect(self.save_as_file)
         toolbar.addAction(save_as_action)
 
         #
-        new_file_action = QAction(QIcon.fromTheme("document-new"), "New File", self)
+        new_file_action = QAction(QIcon(resource_path('icons', 'new_file.png')), "New File", self)
         new_file_action.setToolTip("Generate a new list card view")
         new_file_action.triggered.connect(self.new_file)
         toolbar.addAction(new_file_action)
 
         #
-        new_card_action = QAction(QIcon.fromTheme("contact-new"), "Add Card", self)
+        new_card_action = QAction(QIcon(resource_path('icons', 'add-card.png')), "Add Card", self)
         new_card_action.setToolTip("Add a new card to current view")
         new_card_action.triggered.connect(self.add_new_card)
         toolbar.addAction(new_card_action)
@@ -423,13 +428,13 @@ class AcademicContactsApp(QMainWindow):
         toolbar.addWidget(spacer)
         
         # Coffee
-        coffee_action = QAction(QIcon.fromTheme("emblem-favorite"), "Coffee", self)
+        coffee_action = QAction(QIcon(resource_path('icons', 'emote-love.png')), "Coffee", self)
         coffee_action.setToolTip("Buy me a coffee (TrucomanX)")
         coffee_action.triggered.connect(self.on_coffee_action_click)
         toolbar.addAction(coffee_action)
         
         # 
-        about_action = QAction(QIcon.fromTheme("help-about"),"About", self)
+        about_action = QAction(QIcon(resource_path('icons', 'status_help.png')),"About", self)
         about_action.triggered.connect(self.open_about)
         about_action.setToolTip("Show the information of program.")
         toolbar.addAction(about_action)
@@ -461,14 +466,14 @@ class AcademicContactsApp(QMainWindow):
         export_toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
 
         # Elsevier
-        elsevier_icon_path = os.path.join(self.base_dir_path, 'icons', 'elsevier.png')
+        elsevier_icon_path = resource_path('icons', 'elsevier.png')
         elsevier_action = QAction(QIcon(elsevier_icon_path), "Elsevier", self)
         elsevier_action.setToolTip("Export the author list in LaTeX to Elsevier template format.")
         elsevier_action.triggered.connect(self.show_latex_elsevier)
         export_toolbar.addAction(elsevier_action)
         
         # MDPI
-        mdpi_icon_path = os.path.join(self.base_dir_path, 'icons', 'mdpi.png')
+        mdpi_icon_path = resource_path('icons', 'mdpi.png')
         mdpi_action = QAction(QIcon(mdpi_icon_path), "MDPI", self)
         mdpi_action.setToolTip("Export the author list in LaTeX to MDPI template format.")
         mdpi_action.triggered.connect(self.show_latex_mdpi)
