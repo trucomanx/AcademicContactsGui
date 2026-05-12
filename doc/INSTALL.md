@@ -21,7 +21,7 @@ academic-contacts
 Installing `academic-contacts` program
 
 ```bash
-git clone https://github.com/trucomanx/AcademicContactsGui.git
+git clone https://github.com/trucomanx-desktop/AcademicContactsGui.git
 cd AcademicContactsGui
 pip install -r requirements.txt
 cd src
